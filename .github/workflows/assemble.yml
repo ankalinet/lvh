@@ -1,0 +1,44 @@
+name: Assemble website
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".upload/**"
+
+permissions:
+  contents: write
+
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check upload completeness
+        id: check
+        shell: bash
+        run: |
+          ok=true
+          for i in 00 01 02 03 04 05 06 07 08; do
+            test -f ".upload/index/part$i" || ok=false
+          done
+          for i in 00 01 02 03 04; do
+            test -f ".upload/logo/part$i" || ok=false
+          done
+          echo "ok=$ok" >> "$GITHUB_OUTPUT"
+      - name: Assemble site
+        if: steps.check.outputs.ok == 'true'
+        shell: bash
+        run: |
+          cat .upload/index/part* > index.html
+          cat .upload/logo/part* | base64 -d > logo.png
+          rm -rf .upload
+      - name: Commit assembled files
+        if: steps.check.outputs.ok == 'true'
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Assemble La Vie Hospital website V5"
+          git push
